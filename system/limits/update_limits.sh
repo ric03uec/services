@@ -35,3 +35,5 @@ main() {
   update_network_limits
   refresh_settings
 }
+
+main
