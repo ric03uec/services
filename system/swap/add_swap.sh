@@ -9,9 +9,9 @@
 ###############################################################
 
 ## amount of swap space in MB
-SWAP_SIZE=5120
-SWAP_FILE=/root/.__swap__
-BLOCK_SIZE=1M
+readonly SWAP_SIZE=5120
+readonly SWAP_FILE=/root/.__swap__
+readonly BLOCK_SIZE=1M
 
 ###############################################################
 

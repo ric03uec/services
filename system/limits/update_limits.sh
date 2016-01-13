@@ -1,5 +1,13 @@
 #!/bin/bash -e
 
+################### Description ###############################
+# basic shell script to create swap space on the hosts
+#
+################### Verified Platforms ########################
+# ubuntu 12.04
+# ubuntu 14.04
+###############################################################
+
 readonly MAX_FILE_DESCRIPTORS=90000
 readonly MAX_WATCHERS=524288
 readonly MAX_CONNECTIONS=196608
