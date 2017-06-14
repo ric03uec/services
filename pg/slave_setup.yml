@@ -1,0 +1,40 @@
+- hosts: database
+  remote_user: root
+
+  tasks:
+    - name: ensure apt cache is up to date
+      apt: update_cache=yes
+
+    - name: ensure packages are installed
+      apt: name={{item}}
+      with_items:
+        - libpq-dev
+        - python-psycopg2
+
+- hosts: database
+  become: yes
+  remote_user: root
+  become: yes
+  vars:
+    postgresql_version: 9.5
+
+    postgresql_databases:
+      - name: shipdb
+        owner: apiuser
+
+    postgresql_users:
+      - name: apiuser
+        pass: testing1234
+
+    postgresql_user_privileges:
+      - name: apiuser
+        db: shipdb
+
+  roles:
+    - postgresql
+
+- hosts: dev
+  remote_user: root
+  tasks:
+    - name: List contents in dev server home directory
+      command: ls -al

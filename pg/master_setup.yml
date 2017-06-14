@@ -1,0 +1,89 @@
+- hosts: db-master
+  remote_user: root
+
+  tasks:
+    - name: ensure apt cache is up to date
+      apt: update_cache=yes
+
+    - name: ensure packages are installed
+      apt: name={{item}}
+      with_items:
+        - libpq-dev
+        - python-psycopg2
+
+- hosts: db-master
+  remote_user: root
+  become: yes
+  vars:
+    postgresql_version: 9.5
+
+    postgresql_databases:
+      - name: shipdb
+        owner: apiuser
+
+    #TODO: take password from env
+    #or template it into vars file
+    postgresql_users:
+      - name: apiuser
+        pass: testing1234
+
+    postgresql_user_privileges:
+      - name: apiuser
+        db: shipdb
+
+  roles:
+    - postgresql
+
+- hosts: db-master
+  remote_user: root
+  tasks:
+    - name: create Root directory for postgres
+      file:
+        path: /pg
+        state: directory
+        owner: postgres
+
+    - name: create Root db directory for postgres
+      file:
+        path: /pg/db
+        state: directory
+        owner: postgres
+
+    - name: create Root config directory for postgres
+      file:
+        path: /pg/config
+        state: directory
+        owner: postgres
+
+    - name: create directory for storing app database
+      file:
+        path: /ship
+        state: directory
+        owner: postgres
+
+    - name: create directory for storing app database files
+      file:
+        path: /ship/db
+        state: directory
+        owner: postgres
+
+- hosts: db-master
+  remote_user: root
+  vars:
+    listen_addresses: '*'
+    data_directory: '/pg/db'
+    hba_file: '/pg/config/pg_hba.conf'
+    ident_file: '/pg/config/pg_ident.conf'
+
+  tasks:
+    - name: Create postgres config file
+      template:
+        src: postgresql.conf.j2
+        dest: /pg/config/postgresql.conf
+
+
+## TODO
+# copy the postgresql.conf from this host to master
+# /pg/postgresql.conf.template
+# remove the file /etc/postgresql/9.5/main/postgresql.conf
+# symlink /pg/postgresql.conf -> /etc/postgresql/9.5/postgresql.conf

@@ -1,0 +1,59 @@
+# -----------------------------
+# PostgreSQL configuration file
+# -----------------------------
+
+data_directory = '{{ data_directory | mandatory }}'	# (change requires restart)
+hba_file = '{{ hba_file | mandatory }}'	# (change requires restart)
+ident_file = '{{ ident_file | mandatory }}'	# (change requires restart)
+
+external_pid_file = '/var/run/postgresql/9.5-main.pid' # (change requires restart)
+
+listen_addresses = '{{ listen_addresses | mandatory }}' # what IP address(es) to listen on;
+port = 5432				# (change requires restart)
+max_connections = 100			# (change requires restart)
+unix_socket_directories = '/var/run/postgresql'	# comma-separated list of directories
+
+ssl = true				# (change requires restart)
+ssl_cert_file = '/etc/ssl/certs/ssl-cert-snakeoil.pem'		# (change requires restart)
+ssl_key_file = '/etc/ssl/private/ssl-cert-snakeoil.key'		# (change requires restart)
+
+shared_buffers = 128MB			# min 128kB (change requires restart)
+dynamic_shared_memory_type = posix	# the default is the first option
+					# supported by the operating system:
+					#   posix
+					#   sysv
+					#   windows
+					#   mmap
+					# use none to disable dynamic shared memory
+
+log_line_prefix = '%t [%p-%l] %q%u@%d '			# special values:
+					#   %a = application name
+					#   %u = user name
+					#   %d = database name
+					#   %r = remote host and port
+					#   %h = remote host
+					#   %p = process ID
+					#   %t = timestamp without milliseconds
+					#   %m = timestamp with milliseconds
+					#   %i = command tag
+					#   %e = SQL state
+					#   %c = session ID
+					#   %l = session line number
+					#   %s = session start timestamp
+					#   %v = virtual transaction ID
+					#   %x = transaction ID (0 if none)
+					#   %q = stop here in non-session
+					#        processes
+					#   %% = '%'
+					# e.g. '<%u%%%d> '
+log_timezone = 'localtime'
+
+stats_temp_directory = '/var/run/postgresql/9.5-main.pg_stat_tmp'
+datestyle = 'iso, mdy'
+timezone = 'localtime'
+
+lc_messages = 'en_US.UTF-8'			# locale for system error message
+lc_monetary = 'en_US.UTF-8'			# locale for monetary formatting
+lc_numeric = 'en_US.UTF-8'			# locale for number formatting
+lc_time = 'en_US.UTF-8'				# locale for time formatting
+default_text_search_config = 'pg_catalog.english'

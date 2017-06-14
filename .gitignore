@@ -1,0 +1,4 @@
+*.swp
+*.swo
+pg/roles
+pg/hosts
