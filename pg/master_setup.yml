@@ -16,23 +16,15 @@
   become: yes
   vars:
     postgresql_version: 9.5
-
-    postgresql_databases:
-      - name: shipdb
-        owner: apiuser
-
-    #TODO: take password from env
-    #or template it into vars file
-    postgresql_users:
-      - name: apiuser
-        pass: testing1234
-
-    postgresql_user_privileges:
-      - name: apiuser
-        db: shipdb
-
   roles:
     - postgresql
+  tasks:
+    - name: stop postgresql server
+      service:
+        name: postgresql
+        state: stopped
+        enabled: yes
+      become: yes
 
 - hosts: db-master
   remote_user: root
@@ -70,20 +62,71 @@
 - hosts: db-master
   remote_user: root
   vars:
+    pg_bin_path: /usr/lib/postgresql/9.5/bin
     listen_addresses: '*'
     data_directory: '/pg/db'
     hba_file: '/pg/config/pg_hba.conf'
     ident_file: '/pg/config/pg_ident.conf'
 
   tasks:
+    - name: Check if data directory empty or not
+      find:
+        paths: "{{ data_directory }}"
+        patterns: "*"
+      register: data_dir_files
+
+    - name: initialize database
+      become: yes
+      become_user: postgres
+      command: "{{ pg_bin_path }}/initdb {{ data_directory }}"
+      when: data_dir_files.matched| int == 0
+
+    - name: Copy identity file
+      copy:
+        src: /etc/postgresql/9.5/main/pg_ident.conf
+        dest: /pg/config/pg_ident.conf
+        owner: postgres
+        group: postgres
+        remote_src: yes
+
+    - name: Create postgres hba file
+      template:
+        src: pg_hba.conf.j2
+        dest: /pg/config/pg_hba.conf
+        owner: postgres
+        group: postgres
+
     - name: Create postgres config file
       template:
         src: postgresql.conf.j2
         dest: /pg/config/postgresql.conf
+        owner: postgres
+        group: postgres
+
+    - name: Delete exiting postgres config file
+      file:
+        path: /etc/postgresql/9.5/main/postgresql.conf
+        state: absent
+
+    - name: Symlink postgres config file
+      file:
+        src: /pg/config/postgresql.conf
+        dest: /etc/postgresql/9.5/main/postgresql.conf
+        state: link
 
 
-## TODO
-# copy the postgresql.conf from this host to master
-# /pg/postgresql.conf.template
-# remove the file /etc/postgresql/9.5/main/postgresql.conf
-# symlink /pg/postgresql.conf -> /etc/postgresql/9.5/postgresql.conf
+- hosts: db-master
+  remote_user: root
+  tasks:
+    - name: stop postgresql server
+      service:
+        name: postgresql
+        state: stopped
+        enabled: yes
+      become: yes
+
+    - name: start postgresql server
+      service:
+        name: postgresql
+        state: started
+      become: yes
