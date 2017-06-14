@@ -1,6 +1,5 @@
 - hosts: db-master
   remote_user: root
-
   tasks:
     - name: ensure apt cache is up to date
       apt: update_cache=yes
@@ -24,7 +23,6 @@
         name: postgresql
         state: stopped
         enabled: yes
-      become: yes
 
 - hosts: db-master
   remote_user: root
@@ -34,30 +32,35 @@
         path: /pg
         state: directory
         owner: postgres
+        group: postgres
 
     - name: create Root db directory for postgres
       file:
         path: /pg/db
         state: directory
         owner: postgres
+        group: postgres
 
     - name: create Root config directory for postgres
       file:
         path: /pg/config
         state: directory
         owner: postgres
+        group: postgres
 
     - name: create directory for storing app database
       file:
         path: /ship
         state: directory
         owner: postgres
+        group: postgres
 
     - name: create directory for storing app database files
       file:
         path: /ship/db
         state: directory
         owner: postgres
+        group: postgres
 
 - hosts: db-master
   remote_user: root
@@ -79,7 +82,7 @@
       become: yes
       become_user: postgres
       command: "{{ pg_bin_path }}/initdb {{ data_directory }}"
-      when: data_dir_files.matched| int == 0
+      when: data_dir_files.matched | int == 0
 
     - name: Copy identity file
       copy:
@@ -114,7 +117,6 @@
         dest: /etc/postgresql/9.5/main/postgresql.conf
         state: link
 
-
 - hosts: db-master
   remote_user: root
   tasks:
@@ -130,3 +132,92 @@
         name: postgresql
         state: started
       become: yes
+
+- hosts: db-master
+  remote_user: root
+  vars:
+    db_role: dbo
+    db_user: apiuser
+    db_name: shipdb
+    db_password: testing1234
+    db_ts: shipts
+    db_ts_path: /ship/db
+  tasks:
+    - name: Create postgres role
+      become: yes
+      become_user: postgres
+      postgresql_user: >-
+        name={{ db_role }}
+        state=present
+        role_attr_flags="INHERIT"
+
+#     - name: Create role for db owner
+      # become: yes
+      # postgresql_user:
+      #   db: "{{ db_name }}"
+      # become_user: postgres
+#       command: psql -c "CREATE ROLE {{ db_role }} INHERIT";
+
+    - name: Create application db user
+      become: yes
+      become_user: postgres
+      postgresql_user: >-
+        name={{ db_user }}
+        password={{ db_password }}
+        state=present
+        role_attr_flags="LOGIN,INHERIT"
+
+    - name: Add application user to role
+      become: yes
+      become_user: postgres
+      postgresql_privs: >-
+        database=postgres
+        roles={{ db_user }}
+        objs={{ db_role }}
+        type=group
+
+    - name: Find existing tablespace
+      become: yes
+      become_user: postgres
+      command: psql -A -t -c "SELECT COUNT(*) FROM pg_tablespace where spcname = '{{ db_ts }}'"
+      register: ts_count
+
+    - name: Create application db tablespace
+      become: yes
+      become_user: postgres
+      command: psql -c "CREATE TABLESPACE {{ db_ts }} OWNER {{ db_role }} LOCATION '{{ db_ts_path }}'";
+      when: ts_count.stdout | int == 0
+
+    - name: Find existing database
+      become: yes
+      become_user: postgres
+      command: psql -A -t -c "SELECT COUNT(*) FROM pg_database where datname = '{{ db_name }}'"
+      register: db_count
+
+    - name: Create application db
+      become: yes
+      become_user: postgres
+      command: psql -c "CREATE DATABASE {{ db_name }} OWNER {{ db_role }} TABLESPACE {{ db_ts }}";
+      when: db_count.stdout | int == 0
+
+      #revoke access to public group from "database1"
+    - name: Revoke public access to database
+      become: yes
+      become_user: postgres
+      postgresql_privs: >
+        db=postgres
+        state=absent
+        priv=CONNECT,TEMPORARY
+        obj={{ db_name }}
+        role=public
+        type=database
+
+    - name: Setup group privileges
+      become: yes
+      become_user: postgres
+      postgresql_privs: >
+        db=postgres
+        role={{ db_role }}
+        objs={{ db_name }}
+        privs=ALL
+        type=database
