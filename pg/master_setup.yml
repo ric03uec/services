@@ -15,9 +15,28 @@
   become: yes
   vars:
     postgresql_version: 9.5
+    root_dir: /pg
+    data_dir: /ship
+
+  pre_tasks:
+    - name: Check if root directory empty or not
+      stat:
+        path: "{{ root_dir }}"
+        get_checksum: no
+        get_md5: no
+      register: root_dir_files
+
+    - name: Check if data directory empty or not
+      stat:
+        path: "{{ data_dir }}"
+        get_checksum: no
+        get_md5: no
+      register: data_dir_files
+
   roles:
-    - postgresql
-  tasks:
+    - { role: postgresql,  when: (data_dir_files.stat.nlink | int == 2) and (root_dir_files.stat.nlink | int == 2) }
+
+  post_tasks:
     - name: stop postgresql server
       service:
         name: postgresql
@@ -26,38 +45,34 @@
 
 - hosts: db-master
   remote_user: root
+  vars:
+    root_dir: /pg
+    data_dir: /ship
   tasks:
     - name: create Root directory for postgres
       file:
-        path: /pg
-        state: directory
-        owner: postgres
-        group: postgres
-
-    - name: create Root db directory for postgres
-      file:
-        path: /pg/db
+        path: "{{ root_dir }}/db"
         state: directory
         owner: postgres
         group: postgres
 
     - name: create Root config directory for postgres
       file:
-        path: /pg/config
+        path: "{{ root_dir }}/config"
         state: directory
         owner: postgres
         group: postgres
 
     - name: create directory for storing app database
       file:
-        path: /ship
+        path: "{{ data_dir }}"
         state: directory
         owner: postgres
         group: postgres
 
     - name: create directory for storing app database files
       file:
-        path: /ship/db
+        path: "{{ data_dir }}/db"
         state: directory
         owner: postgres
         group: postgres
@@ -150,13 +165,6 @@
         name={{ db_role }}
         state=present
         role_attr_flags="INHERIT"
-
-#     - name: Create role for db owner
-      # become: yes
-      # postgresql_user:
-      #   db: "{{ db_name }}"
-      # become_user: postgres
-#       command: psql -c "CREATE ROLE {{ db_role }} INHERIT";
 
     - name: Create application db user
       become: yes
